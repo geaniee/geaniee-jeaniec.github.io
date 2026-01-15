@@ -1,10 +1,12 @@
 ---
-title: "temporary website"
+title: "Welcome to Jeanie's Page"
 ---
 
-This is a Quarto website.
+Hi everyone! I am Jeanie, a CS student currently studying in Singapore Institute of Technology.
+Here is my linkedin profile if you want to see more of what I've been up to: https://www.linkedin.com/in/jeanie-chua/
 
-To learn more about Quarto websites visit <https://quarto.org/docs/websites>.
+I'm excited to share some of the projects I've been working on with you, and hope that you get a hit of inspiration while exploring my site.
+Have a good day!
 
 ```{r}
 1 + 1

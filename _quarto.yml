@@ -4,7 +4,9 @@ project:
 
 website:
   title: "temporary website"
+  favicon: project.png
   navbar:
+    logo: nav.jpg
     left:
       - href: index.qmd
         text: Home
@@ -12,11 +14,11 @@ website:
 
 format:
   html:
-    theme:
-      - cosmo
-      - brand
+    theme: darkly
     css: styles.css
     toc: true
+    toc-depth: 3
+    toc-location: left
 
 editor: visual
 

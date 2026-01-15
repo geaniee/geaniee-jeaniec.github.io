@@ -3,7 +3,7 @@ project:
   output-dir: docs
 
 website:
-  title: "temporary website"
+  title: "Jeanie's Personal Site"
   favicon: project.png
   navbar:
     logo: nav.jpg
@@ -11,6 +11,10 @@ website:
       - href: index.qmd
         text: Home
       - about.qmd
+      - href: datavis.qmd
+        text: Data Visualization
+      - href: reflection.html
+        text: Reflection
 
 format:
   html:

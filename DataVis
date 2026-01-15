@@ -1,0 +1,208 @@
+import React, { useState, useEffect } from 'react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
+const WineQualityViz = () => {
+  const [qualityData, setQualityData] = useState([]);
+  const [correlationData, setCorrelationData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const fileContent = await window.fs.readFile('winequalitywhite new.csv', { encoding: 'utf8' });
+        const lines = fileContent.split('\n').filter(line => line.trim());
+        const headers = lines[0].split(',');
+        
+        const wines = lines.slice(1).map(line => {
+          const values = line.split(',');
+          return {
+            fixedAcidity: parseFloat(values[0]),
+            volatileAcidity: parseFloat(values[1]),
+            citricAcid: parseFloat(values[2]),
+            residualSugar: parseFloat(values[3]),
+            chlorides: parseFloat(values[4]),
+            freeSulfurDioxide: parseFloat(values[5]),
+            totalSulfurDioxide: parseFloat(values[6]),
+            density: parseFloat(values[7]),
+            pH: parseFloat(values[8]),
+            sulphates: parseFloat(values[9]),
+            quality: parseInt(values[10]),
+            alcohol: parseFloat(values[11])
+          };
+        }).filter(wine => !isNaN(wine.quality));
+
+        // Quality distribution
+        const qualityCounts = {};
+        wines.forEach(wine => {
+          qualityCounts[wine.quality] = (qualityCounts[wine.quality] || 0) + 1;
+        });
+        
+        const qualityChartData = Object.keys(qualityCounts)
+          .sort((a, b) => parseInt(a) - parseInt(b))
+          .map(quality => ({
+            quality: `Quality ${quality}`,
+            count: qualityCounts[quality]
+          }));
+        
+        setQualityData(qualityChartData);
+
+        // Correlation matrix calculation
+        const properties = [
+          { key: 'fixedAcidity', name: 'Fixed Acidity' },
+          { key: 'volatileAcidity', name: 'Volatile Acidity' },
+          { key: 'citricAcid', name: 'Citric Acid' },
+          { key: 'residualSugar', name: 'Residual Sugar' },
+          { key: 'chlorides', name: 'Chlorides' },
+          { key: 'freeSulfurDioxide', name: 'Free SO2' },
+          { key: 'totalSulfurDioxide', name: 'Total SO2' },
+          { key: 'density', name: 'Density' },
+          { key: 'pH', name: 'pH' },
+          { key: 'sulphates', name: 'Sulphates' },
+          { key: 'alcohol', name: 'Alcohol' },
+          { key: 'quality', name: 'Quality' }
+        ];
+
+        const correlations = [];
+        
+        for (let i = 0; i < properties.length; i++) {
+          for (let j = 0; j < properties.length; j++) {
+            const prop1 = properties[i].key;
+            const prop2 = properties[j].key;
+            
+            const values1 = wines.map(w => w[prop1]).filter(v => !isNaN(v));
+            const values2 = wines.map(w => w[prop2]).filter(v => !isNaN(v));
+            
+            const correlation = calculateCorrelation(values1, values2);
+            
+            correlations.push({
+              x: properties[j].name,
+              y: properties[i].name,
+              correlation: correlation,
+              xIndex: j,
+              yIndex: i
+            });
+          }
+        }
+        
+        setCorrelationData(correlations);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error loading data:', error);
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  const calculateCorrelation = (x, y) => {
+    const n = Math.min(x.length, y.length);
+    const sumX = x.reduce((a, b) => a + b, 0);
+    const sumY = y.reduce((a, b) => a + b, 0);
+    const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
+    const sumX2 = x.reduce((sum, xi) => sum + xi * xi, 0);
+    const sumY2 = y.reduce((sum, yi) => sum + yi * yi, 0);
+    
+    const numerator = n * sumXY - sumX * sumY;
+    const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+    
+    return denominator === 0 ? 0 : numerator / denominator;
+  };
+
+  const getColor = (correlation) => {
+    const absCorr = Math.abs(correlation);
+    if (correlation > 0) {
+      const intensity = Math.floor(absCorr * 255);
+      return `rgb(${255 - intensity}, ${255 - intensity * 0.3}, ${255 - intensity})`;
+    } else {
+      const intensity = Math.floor(absCorr * 255);
+      return `rgb(${255 - intensity}, ${255 - intensity * 0.3}, 255)`;
+    }
+  };
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-screen">Loading data...</div>;
+  }
+
+  return (
+    <div className="p-8 bg-gray-50 min-h-screen">
+      <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">White Wine Quality Analysis</h1>
+      
+      {/* Bar Chart */}
+      <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+        <h2 className="text-2xl font-semibold mb-4 text-gray-700">Distribution of Wine Quality Ratings</h2>
+        <ResponsiveContainer width="100%" height={400}>
+          <BarChart data={qualityData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="quality" />
+            <YAxis label={{ value: 'Number of Wines', angle: -90, position: 'insideLeft' }} />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="count" fill="#8b5cf6" name="Wine Count" />
+          </BarChart>
+        </ResponsiveContainer>
+        <p className="mt-4 text-gray-600 text-sm">
+          This bar chart shows the distribution of {qualityData.reduce((sum, d) => sum + d.count, 0)} white wines across different quality ratings (scale 0-10).
+        </p>
+      </div>
+
+      {/* Heatmap */}
+      <div className="bg-white rounded-lg shadow-lg p-6">
+        <h2 className="text-2xl font-semibold mb-4 text-gray-700">Correlation Heatmap of Wine Properties</h2>
+        <div className="overflow-x-auto">
+          <div className="inline-block min-w-full">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(13, 80px)', gap: '1px', backgroundColor: '#e5e7eb' }}>
+              <div className="bg-white"></div>
+              {['Fixed Acidity', 'Volatile Acidity', 'Citric Acid', 'Residual Sugar', 'Chlorides', 'Free SO2', 'Total SO2', 'Density', 'pH', 'Sulphates', 'Alcohol', 'Quality'].map((label, i) => (
+                <div key={i} className="bg-white p-2 text-xs font-semibold text-center" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+                  {label}
+                </div>
+              ))}
+              
+              {['Fixed Acidity', 'Volatile Acidity', 'Citric Acid', 'Residual Sugar', 'Chlorides', 'Free SO2', 'Total SO2', 'Density', 'pH', 'Sulphates', 'Alcohol', 'Quality'].map((rowLabel, rowIndex) => (
+                <React.Fragment key={rowIndex}>
+                  <div className="bg-white p-2 text-xs font-semibold flex items-center justify-end">
+                    {rowLabel}
+                  </div>
+                  {correlationData
+                    .filter(d => d.yIndex === rowIndex)
+                    .sort((a, b) => a.xIndex - b.xIndex)
+                    .map((cell, cellIndex) => (
+                      <div
+                        key={cellIndex}
+                        className="flex items-center justify-center text-xs font-semibold"
+                        style={{ 
+                          backgroundColor: getColor(cell.correlation),
+                          color: Math.abs(cell.correlation) > 0.5 ? 'white' : 'black',
+                          height: '80px'
+                        }}
+                        title={`${cell.y} vs ${cell.x}: ${cell.correlation.toFixed(3)}`}
+                      >
+                        {cell.correlation.toFixed(2)}
+                      </div>
+                    ))}
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 flex items-center justify-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-12 h-6" style={{ background: 'linear-gradient(to right, rgb(255,255,255), rgb(100,50,200))' }}></div>
+            <span className="text-sm text-gray-600">Positive Correlation</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-12 h-6" style={{ background: 'linear-gradient(to right, rgb(255,255,255), rgb(100,150,255))' }}></div>
+            <span className="text-sm text-gray-600">Negative Correlation</span>
+          </div>
+        </div>
+        <p className="mt-4 text-gray-600 text-sm">
+          This heatmap shows correlations between all wine properties. Values range from -1 (strong negative correlation) to +1 (strong positive correlation).
+          Source: https://www.kaggle.com/datasets/willianoliveiragibin/modeling-wine?resource=download
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default WineQualityViz;
